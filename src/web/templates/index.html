@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风扇控制</title>
+<style>
+/* ── 绿白清爽主题 ─────────────────────────────── */
+:root {
+    --bg: #f4f9f4;         /* 淡绿白背景 */
+    --card: #ffffff;
+    --accent: #e8f5e9;     /* 卡片内浅绿 */
+    --primary: #2e7d32;    /* 主绿 */
+    --primary-soft: #66bb6a;
+    --text: #243329;       /* 墨绿近黑 */
+    --dim: #7b8b7f;
+    --ok: #2e7d32;
+    --warn: #f9a825;
+    --err: #c62828;
+    --line: #dcebe0;
+    --shadow: 0 1px 4px rgba(46,125,50,.10);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; padding:20px; }
+.container { max-width:920px; margin:0 auto; }
+h1 { font-size:1.35rem; margin-bottom:18px; color:var(--primary); display:flex; align-items:center; gap:8px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; box-shadow:var(--shadow); }
+.card h3 { font-size:.95rem; color:var(--dim); margin-bottom:12px; font-weight:600; }
+
+/* 状态栏 */
+.status-bar { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.status-item { background:var(--card); border:1px solid var(--line); padding:10px 18px; border-radius:12px; box-shadow:var(--shadow); }
+.status-item .val { font-size:1.15rem; font-weight:700; color:var(--primary); }
+.status-item .label { color:var(--dim); font-size:.72rem; margin-top:2px; }
+
+/* 风扇卡片 */
+.fan-card { background:var(--accent); border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid var(--line); }
+.fan-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.fan-label { font-weight:700; font-size:1.02rem; color:var(--primary); }
+.fan-id { color:var(--dim); font-size:.72rem; }
+.fan-status { display:flex; gap:26px; margin-bottom:12px; }
+.fan-metric { text-align:center; }
+.fan-metric .num { font-size:1.35rem; font-weight:700; color:var(--text); }
+.fan-metric .unit { font-size:.68rem; color:var(--dim); }
+
+/* 模式切换（分段控件样式） */
+.mode-toggle { display:flex; background:#fff; border:1px solid var(--line); border-radius:9px; padding:3px; gap:3px; margin-bottom:12px; width:fit-content; }
+.mode-btn { padding:5px 18px; border-radius:7px; border:none; background:transparent; color:var(--dim); cursor:pointer; font-size:.82rem; transition:all .18s; }
+.mode-btn.active { background:var(--primary); color:#fff; }
+
+/* 表单控件 */
+.sensor-select { width:100%; max-width:340px; padding:8px 12px; background:#fff; color:var(--text);
+                 border:1px solid var(--line); border-radius:8px; font-size:.85rem; margin-bottom:12px; }
+.curve-inputs { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; align-items:flex-end; }
+.curve-point { display:flex; flex-direction:column; gap:4px; background:#fff; padding:8px; border-radius:8px; border:1px solid var(--line); }
+.curve-point input { width:58px; padding:5px 6px; background:#fff; color:var(--text);
+                     border:1px solid var(--line); border-radius:6px; text-align:center; font-size:.8rem; }
+.curve-point .c-label { font-size:.62rem; color:var(--dim); text-align:center; }
+.manual-row { display:flex; align-items:center; gap:14px; max-width:420px; }
+input[type=range] { flex:1; accent-color:var(--primary); }
+.manual-val { font-size:1.15rem; font-weight:700; color:var(--primary); min-width:44px; text-align:center; }
+
+/* 传感器列表 */
+.sensor-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.sensor-item { background:#fff; padding:12px; border-radius:10px; text-align:center; border:1px solid var(--line); }
+.sensor-item .temp { font-size:1.35rem; font-weight:700; color:var(--primary); }
+.sensor-item .name { font-size:.72rem; color:var(--dim); margin-top:4px; }
+.sensor-item .err { color:var(--err); font-size:.68rem; }
+
+/* 状态点 */
+.indicator { width:9px; height:9px; border-radius:50%; display:inline-block; }
+.indicator.ok { background:var(--ok); }
+.indicator.err { background:var(--err); }
+
+/* 按钮 */
+.btn { padding:7px 16px; border-radius:8px; border:none; background:var(--primary); color:#fff; cursor:pointer; font-size:.83rem; }
+.btn:hover { background:var(--primary-soft); }
+.btn.secondary { background:#fff; border:1px solid var(--line); color:var(--dim); }
+.btn.identify { background:#fff; border:1px solid var(--primary); color:var(--primary); padding:6px 12px; font-size:.78rem; white-space:nowrap; }
+.btn.identify:disabled { opacity:.5; cursor:wait; }
+.muted { font-size:.74rem; color:var(--dim); margin-top:6px; }
+
+/* 改名行 */
+.name-row { display:flex; gap:8px; margin-bottom:12px; }
+.name-input { flex:1; max-width:320px; padding:7px 10px; background:#fff; color:var(--text);
+              border:1px solid var(--line); border-radius:8px; font-size:.8rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🍃 风扇控制</h1>
+
+<div class="status-bar" id="statusBar">
+    <div class="status-item"><div class="val" id="stRunning">--</div><div class="label">状态</div></div>
+    <div class="status-item"><div class="val" id="stCycles">--</div><div class="label">循环次数</div></div>
+    <div class="status-item"><div class="val" id="stInterval">--</div><div class="label">刷新间隔(s)</div></div>
+</div>
+
+<div class="card">
+    <h3>🌡️ 温度传感器</h3>
+    <div class="sensor-grid" id="sensorGrid"></div>
+    <button class="btn secondary" style="margin-top:12px" onclick="reDiscover()">🔄 重新扫描</button>
+</div>
+
+<div class="card">
+    <h3>🌀 风扇控制</h3>
+    <div id="fanList"></div>
+</div>
+</div>
+
+<script>
+let statusData = null;
+let refreshTimer = null;
+let userEditing = false;          // 用户正在操作表单时暂停整页重绘（修复下拉弹回）
+let editReleaseTimer = null;
+
+function markEditing(sec) {
+    // 任何交互（focus/click/change）都会续借暂停窗口
+    userEditing = true;
+    clearTimeout(editReleaseTimer);
+    editReleaseTimer = setTimeout(() => { userEditing = false; }, (sec || 10) * 1000);
+}
+document.addEventListener('focusin', e => {
+    if (e.target.matches('select, input, button')) markEditing(12);
+});
+document.addEventListener('mousedown', e => {
+    if (e.target.closest('select, input, button, .mode-toggle, .curve-point')) markEditing(12);
+});
+document.addEventListener('change', () => markEditing(6));
+
+async function fetchStatus() {
+    try {
+        const r = await fetch('/api/status');
+        statusData = await r.json();
+        if (!userEditing) render();        // 编辑中只更新数据不重绘
+        else updateStatusBar();
+    } catch(e) { console.error('fetch error:', e); }
+}
+
+function updateStatusBar() {
+    if (!statusData) return;
+    const { config, running, cycle_count } = statusData;
+    const el = document.getElementById('stRunning');
+    el.textContent = running ? '● 运行中' : '○ 停止';
+    el.style.color = running ? 'var(--ok)' : 'var(--err)';
+    document.getElementById('stCycles').textContent = cycle_count ?? '--';
+    document.getElementById('stInterval').textContent = config?.interval || 5;
+}
+
+function render() {
+    if (!statusData) return;
+    updateStatusBar();
+    const { sensors, fans, config } = statusData;
+
+    // 传感器（隐藏悬空/无效通道，避免垃圾读数干扰；数据仍在 API 里可查）
+    const sg = document.getElementById('sensorGrid');
+    const shown = sensors.filter(s => !(s.error && (s.error||'').includes('悬空')));
+    sg.innerHTML = shown.map(s => {
+        const hasErr = s.error !== null && s.error !== undefined;
+        const temp = hasErr ? 'ERR' : (s.value !== null && s.value !== undefined ? s.value.toFixed(1) + '°' : '--');
+        return `<div class="sensor-item">
+            <div class="temp">${temp}</div>
+            <div class="name">${s.label}</div>
+            ${hasErr ? `<div class="err">⚠ ${(s.error||'').substring(0,20)}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    // 风扇
+    const fl = document.getElementById('fanList');
+    fl.innerHTML = fans.map(f => {
+        const cfg = config?.fans?.[f.channel_id] || {};
+        const mode = cfg.mode || 'auto';
+        const sensorId = cfg.sensor_id || '';
+        const curve = cfg.curve || [];
+        const manualPwm = cfg.manual_pwm ?? 128;
+        const alive = f.current_rpm > 0;
+
+        const curveInputs = curve.map((pt, i) =>
+            `<div class="curve-point">
+                <input type="number" value="${pt.temp}" onchange="updateCurve('${f.channel_id}',${i},'temp',this.value)">
+                <div class="c-label">温度℃</div>
+                <input type="number" min="0" max="100" value="${pwmToPct(pt.pwm)}" onchange="updateCurve('${f.channel_id}',${i},'pwm',this.value)">
+                <div class="c-label">占空比%</div>
+            </div>`
+        ).join('');
+
+        const sensorOpts = sensors
+            .filter(s => !(s.error && (s.error||'').includes('悬空')))
+            .map(s =>
+            `<option value="${s.id}" ${s.id === sensorId ? 'selected' : ''}>${s.label}（${s.value?.toFixed(1) ?? '--'}°）</option>`
+        ).join('');
+
+        return `<div class="fan-card">
+            <div class="fan-header">
+                <div><span class="fan-label">🌀 ${displayName(f, cfg)}</span><br>
+                     <span class="fan-id">${f.channel_id}</span></div>
+                <span class="indicator ${alive ? 'ok' : 'err'}" title="${alive ? '转速正常' : '未接风扇/停转'}"></span>
+            </div>
+            <div class="fan-status">
+                <div class="fan-metric"><div class="num">${f.current_rpm ?? '--'}</div><div class="unit">RPM</div></div>
+                <div class="fan-metric"><div class="num">${f.current_pwm != null ? pwmToPct(f.current_pwm) + '%' : '--'}</div><div class="unit">占空比</div></div>
+            </div>
+            <div class="name-row">
+                <input class="name-input" placeholder="自定义名称：CPU风扇 / 机箱风扇 / 水泵…"
+                       value="${cfg.display_name || ''}"
+                       onfocus="markEditing(20)"
+                       onchange="renameFan('${f.channel_id}', this.value)">
+                <button class="btn identify" title="让这路风扇降速 5 秒，盯着机箱看哪把转慢了就是它"
+                        onclick="identifyFan('${f.channel_id}', this)">🔎 识别</button>
+            </div>
+            <div class="mode-toggle">
+                <button class="mode-btn ${mode==='auto'?'active':''}" onclick="setMode('${f.channel_id}','auto')">自动</button>
+                <button class="mode-btn ${mode==='manual'?'active':''}" onclick="setMode('${f.channel_id}','manual')">手动</button>
+            </div>
+            ${mode === 'auto' ? `
+                <select class="sensor-select" onchange="setSensor('${f.channel_id}',this.value)">
+                    <option value="">-- 选择温度源 --</option>${sensorOpts}
+                </select>
+                <div class="curve-inputs">${curveInputs}
+                    <button class="btn secondary" style="font-size:.72rem;padding:5px 10px"
+                            onclick="addCurvePoint('${f.channel_id}')">+ 添加点</button>
+                </div>
+                <div class="muted">最低占空比: <b>${pwmToPct(cfg.min_pwm ?? 30)}%</b></div>
+            ` : `
+                <div class="manual-row">
+                    <input type="range" min="0" max="100" value="${pwmToPct(manualPwm)}"
+                           oninput="document.getElementById('mval_${f.channel_id}').textContent=this.value+'%'; markEditing(15)"
+                           onchange="setManualPwm('${f.channel_id}',this.value)">
+                    <span class="manual-val" id="mval_${f.channel_id}">${pwmToPct(manualPwm)}%</span>
+                </div>
+            `}
+        </div>`;
+    }).join('');
+}
+
+function displayName(f, cfg) {
+    return (cfg.display_name && cfg.display_name.trim()) ? cfg.display_name.trim() : f.label;
+}
+
+// ─── PWM ↔ 占空比% 换算（内部存 0-255，UI 全部用百分比）───
+function pwmToPct(pwm) { return Math.round((pwm || 0) / 255 * 100); }
+function pctToPwm(pct) { return Math.max(0, Math.min(255, Math.round(pct * 255 / 100))); }
+
+// ─── API 调用 ────────────────────────────────────────
+async function renameFan(id, name) {
+    markEditing(4);
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({display_name: (name||'').trim()})
+    });
+    fetchStatus();
+}
+
+// 识别模式：让该通道 30→5s 深降速再回来，肉眼认风扇
+async function identifyFan(id, btn) {
+    markEditing(25);
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '👀 观察中…';
+    try {
+        // 深降速（min 15，避免水泵停转风险）
+        await fetch(`/api/fan/${id}/pwm`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({pwm: 15})
+        });
+        await new Promise(r => setTimeout(r, 6000));       // 观察 6 秒
+        // 恢复：拉一次状态让控制循环把模式值写回去
+        await fetch('/api/status');
+        btn.textContent = orig;
+        btn.disabled = false;
+        fetchStatus();
+    } catch(e) {
+        btn.textContent = '识别失败';
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+    }
+}
+async function setMode(id, mode) {
+    markEditing(4);
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mode})
+    });
+    fetchStatus();
+}
+async function setSensor(id, sid) {
+    markEditing(4);
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sensor_id: sid || null})
+    });
+    fetchStatus();
+}
+async function setManualPwm(id, val) {
+    markEditing(4);
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mode:'manual', manual_pwm: pctToPwm(parseInt(val))})
+    });
+    fetchStatus();
+}
+async function updateCurve(id, idx, field, val) {
+    const cfg = statusData?.config?.fans?.[id];
+    if (!cfg?.curve) return;
+    // 温度存 ℃ 原值；占空比% 换算回内部 0-255 存储
+    cfg.curve[idx][field] = field === 'temp' ? parseFloat(val) : pctToPwm(parseInt(val));
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({curve: cfg.curve})
+    });
+}
+async function addCurvePoint(id) {
+    const cfg = statusData?.config?.fans?.[id];
+    if (!cfg?.curve) return;
+    const last = cfg.curve[cfg.curve.length - 1];
+    const lastPct = pwmToPct(last?.pwm || 128);
+    cfg.curve.push({temp: (last?.temp || 40) + 10, pwm: pctToPwm(Math.min(100, lastPct + 20))});
+    await fetch(`/api/fan/${id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({curve: cfg.curve})
+    });
+    fetchStatus();
+}
+async function reDiscover() {
+    markEditing(4);
+    await fetch('/api/discover', {method:'POST'});
+    fetchStatus();
+}
+
+// 初始化 + 定时刷新
+fetchStatus();
+refreshTimer = setInterval(fetchStatus, 5000);
+</script>
+</body>
+</html>

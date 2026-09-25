@@ -1,0 +1,4 @@
+#!/bin/bash
+# 升级前回调
+echo "=== fn-fan-control upgrade_init ==="
+exit 0

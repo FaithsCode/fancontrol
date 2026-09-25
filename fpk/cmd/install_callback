@@ -1,0 +1,10 @@
+#!/bin/bash
+# 安装后回调：安装 Python 依赖（flask），失败不阻塞（daemon 有降级）
+echo "=== fn-fan-control install_callback ==="
+if ! python3 -c "import flask" 2>/dev/null; then
+    pip3 install flask >/dev/null 2>&1 \
+        || pip3 install flask -i https://pypi.tuna.tsinghua.edu.cn/simple >/dev/null 2>&1 \
+        || echo "WARN: flask install failed; web ui degraded, control loop still alive"
+fi
+python3 -c "import flask" 2>/dev/null && echo "flask OK"
+exit 0

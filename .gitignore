@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 测试/临时
+*.log
+*.pid
+.sync_probe*
+
+# 打包产物
+dist/
+
+# 救援备份目录（不在仓库内，防止误提交）
+fancontrol_rescue_*/

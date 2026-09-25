@@ -1,0 +1,89 @@
+#!/bin/bash
+# fn-fan-control 生命周期脚本（fnOS 框架规范：TRIM_PKGVAR 为应用可写 var 目录）
+# 框架调用: main start|stop|status
+
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+PID_FILE="${TRIM_PKGVAR}/app.pid"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# fnOS 运行时把包内 app/ 内容释放到 target/（target -> /vol1/@appcenter/<app>）
+SRC_DIR="$APP_DIR/target/src"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> ${LOG_FILE}
+}
+
+status() {
+    # 返回值语义：0=运行中，3=未运行（勿用 exit，会终止整个脚本）
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+        return 0
+    fi
+    return 3
+}
+
+start_process() {
+    if status; then
+        return 0
+    fi
+
+    log_msg "Starting fn-fan-control ..."
+    # 加载内核模块（drivetemp=HDD 温度；nct6775=Nuvoton 主板；it87=ITE 主板——双探测适配不同芯片）
+    /sbin/modprobe drivetemp 2>/dev/null || true
+    /sbin/modprobe nct6775 2>/dev/null || true
+    # nct6775 没露出 pwm 文件时再试 it87（互斥芯片，先后加载无害）
+    ls /sys/class/hwmon/hwmon*/pwm*_input >/dev/null 2>&1 || \
+    ls /sys/class/hwmon/hwmon*/pwm[0-9] >/dev/null 2>&1 || \
+    /sbin/modprobe it87 2>/dev/null || true
+
+    if [ ! -f "$SRC_DIR/daemon.py" ]; then
+        log_msg "ERROR: $SRC_DIR/daemon.py not found, abort start"
+        exit 1
+    fi
+
+    # 源码部署到 TRIM_PKGVAR/src（可写区），配置与日志同区
+    mkdir -p "${TRIM_PKGVAR}/src" /vol2/fan-control
+    cp -r "$SRC_DIR"/* "${TRIM_PKGVAR}/src/"
+
+    cd "${TRIM_PKGVAR}/src"
+    # 守护进程以 root 运行（privilege 已声明），日志写应用 var 区
+    nohup python3 daemon.py >> "$LOG_FILE" 2>&1 &
+    printf "%s" "$!" > ${PID_FILE}
+    sleep 1
+    if kill -0 "$(cat ${PID_FILE})" 2>/dev/null; then
+        log_msg "Started, pid=$(cat ${PID_FILE})"
+    else
+        log_msg "ERROR: daemon exited immediately, check $LOG_FILE"
+    fi
+    return 0
+}
+
+stop_process() {
+    log_msg "Stopping fn-fan-control ..."
+    if [ -f "$PID_FILE" ]; then
+        kill "$(cat $PID_FILE)" 2>/dev/null || true
+        rm -f "$PID_FILE"
+    fi
+    # 恢复 BIOS 风扇控制（pwm_enable=5）
+    for pwm_path in /sys/class/hwmon/hwmon*/pwm[0-9]; do
+        [ -f "$pwm_path" ] || continue
+        enable_path="${pwm_path}_enable"
+        [ -f "$enable_path" ] && echo 5 > "$enable_path" 2>/dev/null || true
+    done
+    log_msg "Stopped"
+    return 0
+}
+
+case "$1" in
+  start)
+    start_process
+    ;;
+  stop)
+    stop_process
+    ;;
+  status)
+    status   # 脚本退出码 = status 返回值（0 运行中 / 3 未运行）
+    ;;
+  *)
+    echo "Unknown command: $1"
+    exit 1
+    ;;
+esac

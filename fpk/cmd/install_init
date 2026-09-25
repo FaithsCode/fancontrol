@@ -1,0 +1,12 @@
+#!/bin/bash
+# fn-fan-control 安装初始化（安装前调用）
+# 依赖齐备性检查交给运行期与框架；此处仅做提示性检查，不阻塞安装。
+
+echo "=== fn-fan-control install_init ==="
+
+command -v python3 >/dev/null 2>&1 || echo "WARN: python3 not found"
+python3 -c "import flask" 2>/dev/null || echo "WARN: flask not importable (daemon will install-free-fallback)"
+command -v smartctl >/dev/null 2>&1 || echo "WARN: smartctl not found (HDD temp will fallback)"
+
+echo "=== install_init done ==="
+exit 0

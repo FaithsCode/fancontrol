@@ -1,0 +1,14 @@
+appname               = fan-control
+version               = 0.1.7
+display_name          = 风扇控制
+desc                  = 读取硬盘/GPU温度，自动调节主板PWM风扇转速（曲线可配置，Web UI监控）
+source                = thirdparty
+platform              = all
+maintainer            = user
+distributor           = user
+desktop_uidir         = ui
+desktop_applaunchname = fan-control.main
+service_port          = 8190
+checkport             = true
+ctl_stop              = true
+changelog             = 0.1.0 首个版本（温度采集+曲线控制+Web UI）

@@ -1,0 +1,4 @@
+#!/bin/bash
+# 配置变更回调（无向导配置）
+echo "=== fn-fan-control config_callback ==="
+exit 0

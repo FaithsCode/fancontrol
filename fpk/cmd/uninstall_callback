@@ -1,0 +1,9 @@
+#!/bin/bash
+# 卸载后回调：恢复 BIOS 默认风扇控制（pwm_enable=5）
+echo "=== fn-fan-control uninstall_callback ==="
+for pwm_path in /sys/class/hwmon/hwmon*/pwm[0-9]; do
+    [ -f "$pwm_path" ] || continue
+    enable_path="${pwm_path}_enable"
+    [ -f "$enable_path" ] && echo 5 > "$enable_path" 2>/dev/null || true
+done
+exit 0

@@ -1,0 +1,4 @@
+#!/bin/bash
+# 升级后回调
+echo "=== fn-fan-control upgrade_callback ==="
+exit 0

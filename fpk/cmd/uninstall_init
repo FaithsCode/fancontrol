@@ -1,0 +1,4 @@
+#!/bin/bash
+# 卸载前回调（守护进程停止由框架负责）
+echo "=== fn-fan-control uninstall_init ==="
+exit 0

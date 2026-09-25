@@ -1,0 +1,4 @@
+#!/bin/bash
+# 配置初始化回调（无向导配置）
+echo "=== fn-fan-control config_init ==="
+exit 0
