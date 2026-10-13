@@ -126,6 +126,31 @@ class Sensor:
 # 传感器管理器：自动发现 + 批量读取
 # ─────────────────────────────────────────────────────────────
 
+class VirtualSensor(Sensor):
+    """虚拟传感器：由一批物理传感器聚合而成（如「全部硬盘最高温」）
+
+    多盘位机箱里，进风风扇应当跟随最热的那块盘，而不是某一块固定盘；
+    成员按 source 动态匹配，硬盘增减时自动适应。
+    """
+
+    def __init__(self, sensor_id: str, label: str, source_filter: str):
+        super().__init__(sensor_id, label, "virtual")
+        self.source_filter = source_filter   # 参与聚合的来源，如 "hdd"
+        self.members: List[str] = []         # 本次实际参与的传感器 id（便于排查）
+
+    def read_with(self, sensors: List["Sensor"]):
+        """依赖物理传感器读取完毕后调用，聚合其有效值（当前取最大值）"""
+        vals = [(s.id, s.value) for s in sensors
+                if s.source == self.source_filter and s.value is not None]
+        self.members = [i for i, _ in vals]
+        if not vals:
+            self.value = None
+            self.error = f"无可用 {self.source_filter} 温度"
+            return
+        self.value = max(v for _, v in vals)
+        self.error = None
+
+
 class SensorManager:
     """管理所有温度传感器的发现和读取"""
 
@@ -140,6 +165,8 @@ class SensorManager:
         self._discover_hdds()
         self._discover_gpus()
         self._discover_hwmon()
+        # 虚拟传感器：全部硬盘最高温（进风风扇跟随最热的那块盘）
+        self.sensors.append(VirtualSensor("max_hdd", "硬盘最高温", "hdd"))
         logger.info("发现 %d 个温度传感器", len(self.sensors))
 
     def _discover_hdds(self):
@@ -259,9 +286,15 @@ class SensorManager:
                 ))
 
     def read_all(self):
-        """批量读取所有传感器"""
+        """批量读取所有传感器：先读物理传感器，再聚合虚拟传感器（依赖前者结果）"""
+        virtuals = []
         for s in self.sensors:
-            s.read()
+            if isinstance(s, VirtualSensor):
+                virtuals.append(s)
+            else:
+                s.read()
+        for v in virtuals:
+            v.read_with(self.sensors)
 
     def get_sensor(self, sensor_id: str) -> Optional[Sensor]:
         """按 ID 获取传感器"""
