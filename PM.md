@@ -4,7 +4,20 @@
 
 ## §A 现势快照
 
-# fn-fan-control 项目快照（2026-10-13 第二十次更新：换板 NCT6687 适配闭环 🎉）
+# fn-fan-control 项目快照（2026-10-13 第二十一次更新：风扇绑定方案 + 失速保护 🎉）
+
+- 项目：飞牛 fnOS 风扇控制应用（fpk 包），工作区 D:\projects\fancontrol
+- 阶段：**0.2.2 运行中**，GitHub master=bff4379。换板（MSI Z490 Carbon / NCT6687-R）后完成全通道映射实测与温控绑定
+- 本轮成果：
+  1. **8 通道 ↔ 主板接口映射实测锁定**（满速扫描法）：CPU_FAN1=pwm1(3007) / SYS_FAN1,2,6=pwm3,4,8(2307-2404) / SYS_FAN3=pwm5(M.2 3pin 无测速) / SYS_FAN4=pwm6(5128, 4×B6015) / SYS_FAN5=pwm7(2094, 2×A12x25) / PUMP_FAN1=pwm2(空置)
+  2. **虚拟传感器 max_hdd**（0.1.9，sensors.py VirtualSensor）：多盘取最高温，供下层排风绑定
+  3. **吸附绑定**（已应用）：CPU←CPU Package / 上层进风×3←主板 System / pwm6←gpu_0 / pwm7←max_hdd / pwm5←WD SN750 自身温度
+  4. **失速保护**（0.2.0-0.2.2，daemon.py）：占空比≥40 且连续 2 周期 rpm=0 → 补转(+30,上限140)并记住下限；补转无效 3 周期 → 自动停用（无测速/未接风扇）。API/UI 透出 stalled
+  5. 实测：pwm8 起转点 30% 停转/38% 起转 → 该组下限 40%；失速保护实测 77→107 补转、0→1000rpm
+  6. **scripts/deploy.sh** 可复用部署脚本（框架 stop/start 同步 + 启动回退 + 源码一致性自检）——根治"覆盖安装不刷源码"的老坑
+  7. 文档：docs/风扇绑定与接线方案.md（映射依据/绑定曲线/BIOS 设置/电流与 3pin 注意项）
+- 待办：BIOS 把 SYS_FAN3 设 DC 模式（3pin 才可控）；SYS_FAN4 四扇建议 SATA 供电 hub；HBA 温度不可读（mpt3sas 无 hwmon）
+- 环境：内核 6.18.18.c1107-trim；out-of-tree nct6687d 驱动已持久化（换内核需重编，源码 /tmp/nct6687d + GitHub Fred78290/nct6687d）
 
 - 项目：飞牛 fnOS 风扇控制应用（fpk 包），工作区 D:\projects\fancontrol
 - 阶段：**0.1.8 运行中，换板适配完成**——用户换 MSI Z490 Carbon（NCT6687-R），应用完整恢复温控闭环并已推 GitHub（commit 278eafc）
