@@ -1,0 +1,365 @@
+{
+  "interval": 5,
+  "smooth": true,
+  "step_size": 5,
+  "safety_pwm": 150,
+  "fans": {
+    "hwmon13_pwm1": {
+      "channel_id": "hwmon13_pwm1",
+      "label": "hwmon13 PWM1",
+      "display_name": "cpu风扇",
+      "mode": "auto",
+      "sensor_id": "hwmon_hwmon7/temp1",
+      "manual_pwm": 128,
+      "curve": [
+        {
+          "temp": 30,
+          "pwm": 50
+        },
+        {
+          "temp": 40,
+          "pwm": 100
+        },
+        {
+          "temp": 50,
+          "pwm": 160
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 30,
+      "safety_pwm": 150
+    },
+    "hwmon13_pwm2": {
+      "channel_id": "hwmon13_pwm2",
+      "label": "hwmon13 PWM2",
+      "display_name": "水泵",
+      "mode": "auto",
+      "sensor_id": null,
+      "manual_pwm": 128,
+      "curve": [
+        {
+          "temp": 30,
+          "pwm": 50
+        },
+        {
+          "temp": 40,
+          "pwm": 100
+        },
+        {
+          "temp": 50,
+          "pwm": 160
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 30,
+      "safety_pwm": 150
+    },
+    "hwmon13_pwm6": {
+      "channel_id": "hwmon13_pwm6",
+      "label": "hwmon13 PWM6",
+      "display_name": "",
+      "mode": "auto",
+      "sensor_id": "gpu_0",
+      "manual_pwm": 128,
+      "curve": [
+        {
+          "temp": 30,
+          "pwm": 50
+        },
+        {
+          "temp": 40,
+          "pwm": 77
+        },
+        {
+          "temp": 50,
+          "pwm": 102
+        },
+        {
+          "temp": 60,
+          "pwm": 128
+        },
+        {
+          "temp": 70,
+          "pwm": 153
+        },
+        {
+          "temp": 80,
+          "pwm": 179
+        },
+        {
+          "temp": 90,
+          "pwm": 204
+        }
+      ],
+      "min_pwm": 30,
+      "safety_pwm": 150
+    },
+    "hwmon13_pwm4": {
+      "channel_id": "hwmon13_pwm4",
+      "label": "hwmon13 PWM4",
+      "display_name": "",
+      "mode": "auto",
+      "sensor_id": null,
+      "manual_pwm": 128,
+      "curve": [
+        {
+          "temp": 30,
+          "pwm": 50
+        },
+        {
+          "temp": 40,
+          "pwm": 100
+        },
+        {
+          "temp": 50,
+          "pwm": 160
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 30,
+      "safety_pwm": 150
+    },
+    "hwmon6_pwm1": {
+      "channel_id": "hwmon6_pwm1",
+      "label": "hwmon6 PWM1",
+      "display_name": "CPU 风扇 A6x25",
+      "mode": "auto",
+      "sensor_id": "hwmon_hwmon9/temp1",
+      "manual_pwm": 130,
+      "curve": [
+        {
+          "temp": 45,
+          "pwm": 77
+        },
+        {
+          "temp": 60,
+          "pwm": 128
+        },
+        {
+          "temp": 72,
+          "pwm": 191
+        },
+        {
+          "temp": 85,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 77,
+      "safety_pwm": 204
+    },
+    "hwmon6_pwm2": {
+      "channel_id": "hwmon6_pwm2",
+      "label": "hwmon6 PWM2",
+      "display_name": "未使用 (PUMP_FAN1)",
+      "mode": "auto",
+      "sensor_id": null,
+      "manual_pwm": 130,
+      "curve": [
+        {
+          "temp": 30,
+          "pwm": 50
+        },
+        {
+          "temp": 40,
+          "pwm": 100
+        },
+        {
+          "temp": 50,
+          "pwm": 160
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 30,
+      "safety_pwm": 150,
+      "stall_guard": true
+    },
+    "hwmon6_pwm3": {
+      "channel_id": "hwmon6_pwm3",
+      "label": "hwmon6 PWM3",
+      "display_name": "上层进风 A8x25",
+      "mode": "manual",
+      "sensor_id": "hwmon_hwmon6/temp2",
+      "manual_pwm": 97,
+      "curve": [
+        {
+          "temp": 38,
+          "pwm": 102
+        },
+        {
+          "temp": 45,
+          "pwm": 128
+        },
+        {
+          "temp": 52,
+          "pwm": 191
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 102,
+      "safety_pwm": 179
+    },
+    "hwmon6_pwm4": {
+      "channel_id": "hwmon6_pwm4",
+      "label": "hwmon6 PWM4",
+      "display_name": "上层进风 A8x25",
+      "mode": "auto",
+      "sensor_id": "hwmon_hwmon6/temp2",
+      "manual_pwm": 130,
+      "curve": [
+        {
+          "temp": 38,
+          "pwm": 102
+        },
+        {
+          "temp": 45,
+          "pwm": 128
+        },
+        {
+          "temp": 52,
+          "pwm": 191
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 102,
+      "safety_pwm": 179
+    },
+    "hwmon6_pwm5": {
+      "channel_id": "hwmon6_pwm5",
+      "label": "hwmon6 PWM5",
+      "display_name": "M.2 散热 WD SN750",
+      "mode": "auto",
+      "sensor_id": "hwmon_hwmon3/temp1",
+      "manual_pwm": 128,
+      "curve": [
+        {
+          "temp": 45,
+          "pwm": 64
+        },
+        {
+          "temp": 55,
+          "pwm": 102
+        },
+        {
+          "temp": 65,
+          "pwm": 166
+        },
+        {
+          "temp": 75,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 64,
+      "safety_pwm": 166,
+      "stall_guard": true
+    },
+    "hwmon6_pwm6": {
+      "channel_id": "hwmon6_pwm6",
+      "label": "hwmon6 PWM6",
+      "display_name": "GPU+HBA 4×B6015",
+      "mode": "auto",
+      "sensor_id": "gpu_0",
+      "manual_pwm": 153,
+      "curve": [
+        {
+          "temp": 40,
+          "pwm": 77
+        },
+        {
+          "temp": 55,
+          "pwm": 102
+        },
+        {
+          "temp": 65,
+          "pwm": 128
+        },
+        {
+          "temp": 75,
+          "pwm": 153
+        },
+        {
+          "temp": 80,
+          "pwm": 153
+        }
+      ],
+      "min_pwm": 77,
+      "safety_pwm": 153,
+      "stall_guard": true
+    },
+    "hwmon6_pwm7": {
+      "channel_id": "hwmon6_pwm7",
+      "label": "hwmon6 PWM7",
+      "display_name": "下层排风 2×A12x25",
+      "mode": "auto",
+      "sensor_id": "max_hdd",
+      "manual_pwm": 130,
+      "curve": [
+        {
+          "temp": 38,
+          "pwm": 89
+        },
+        {
+          "temp": 43,
+          "pwm": 128
+        },
+        {
+          "temp": 48,
+          "pwm": 191
+        },
+        {
+          "temp": 53,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 89,
+      "safety_pwm": 204
+    },
+    "hwmon6_pwm8": {
+      "channel_id": "hwmon6_pwm8",
+      "label": "hwmon6 PWM8",
+      "display_name": "上层进风 A8x25",
+      "mode": "auto",
+      "sensor_id": "hwmon_hwmon6/temp2",
+      "manual_pwm": 140,
+      "curve": [
+        {
+          "temp": 38,
+          "pwm": 102
+        },
+        {
+          "temp": 45,
+          "pwm": 128
+        },
+        {
+          "temp": 52,
+          "pwm": 191
+        },
+        {
+          "temp": 60,
+          "pwm": 255
+        }
+      ],
+      "min_pwm": 102,
+      "safety_pwm": 179,
+      "stall_guard": true
+    }
+  },
+  "presets": {}
+}

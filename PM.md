@@ -4,10 +4,20 @@
 
 ## §A 现势快照
 
-# fn-fan-control 项目快照（2026-10-13 第二十二次更新：显卡曲线按噪音封顶 + 满载热验证 🎉）
+# fn-fan-control 项目快照（2026-10-13 第二十三次更新：交付归档完成 ✅）
 
 - 项目：飞牛 fnOS 风扇控制应用（fpk 包），工作区 D:\projects\fancontrol
-- 阶段：**0.3.1 运行中**，GitHub master=93d2804。换板后完成映射/绑定/失速保护/噪音测试工具/热验证全链路
+- 阶段：**交付归档完成**——0.3.1 运行中（GPU 48℃→35%），源码/安装包/配置快照/版本标签四重保全
+- **归档清单**：
+  1. GitHub：master=1296473（0.3.1 源码 + 方案文档 + 部署脚本），标签 **v0.3.1** 已推
+  2. 可安装包：本地 `dist/fan-control_0.3.1.fpk` + NAS 持久化 `/vol2/fan-control/dist/`（已修 644 权限）
+  3. 配置快照：`docs/fan-config-0.3.1.json`（12 通道绑定曲线，重装后可直接回灌）
+  4. 恢复点：PM.md（本文）+ PM.md.bak + reports/DIMM2 故障报告
+- 归档时运行态：GPU 48℃→35%/1699rpm；全部 8 通道 auto 正常，无失速告警
+- 显卡噪音封顶结论（本轮定稿）：用户实测 80% 太吵 ✗ → **60%（3022 rpm）可接受 ✓**；曲线 40→30% | 55→40% | 65→50% | 75→60% | 80→60% 封顶；ComfyUI 满载验证收敛于 78-80℃（开盖）；换扇方案否决（限高 15mm + 价格 + 现状够用）
+- 待办（非阻塞）：BIOS 将 SYS_FAN3 切 DC 模式（3pin M.2 风扇才受控）；SYS_FAN4 四扇建议 SATA 供电 hub；合盖后如需复核喊我
+- 环境：内核 6.18.18.c1107-trim；out-of-tree nct6687d 驱动已持久化（**fnOS 换内核后需重编**：源码 GitHub Fred78290/nct6687d，headers 在 /usr/src）
+- 迭代 SOP：改码 → 升版本号（manifest+build.sh）→ bash scripts/build.sh → sudo bash scripts/deploy.sh <fpk> <构建目录> → commit → push
 - **显卡散热专题（本轮重点）**：
   1. 问题：4×B6015 满速 5128 rpm 噪音不可接受；用户要求随显卡温度调速并封顶
   2. 工具：**噪音测试**（0.3.x）——`POST /api/fan/<id>/noise-test {start,end,step,hold}` 阶梯升速、每档实测转速写日志、finally 自动还原；`/noise-stop` 可随时中断（≤0.5s）；UI 有 🎧试听 30 秒 / 🔊全档扫描 / ⏹停止
