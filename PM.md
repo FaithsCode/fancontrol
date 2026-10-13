@@ -1,33 +1,41 @@
 # PM.md — 项目上下文恢复点
 
-> 更新时间: 2026-09-25T07:02:34.164Z ｜ 结构: §A 现势快照 / §B 活跃计划与待办 / §C 设计决策索引 / §D 教训固化库 / §E 归档与回写纪律
+> 更新时间: 2026-10-13T21:10:00+08:00 ｜ 结构: §A 现势快照 / §B 活跃计划与待办 / §C 设计决策索引 / §D 教训固化库 / §E 归档与回写纪律
 
 ## §A 现势快照
 
-# fn-fan-control 项目快照（2026-09-25 第十九次更新：GitHub 上线 🎉 项目交付闭环）
+# fn-fan-control 项目快照（2026-10-13 第二十次更新：换板 NCT6687 适配闭环 🎉）
 
 - 项目：飞牛 fnOS 风扇控制应用（fpk 包），工作区 D:\projects\fancontrol
-- 阶段：**0.1.7 已推上 GitHub**——https://github.com/FaithsCode/fancontrol（master，commit 49a06c9，62 文件/2816 行）；NAS 温控闭环运行中
-- Git 链路（已打通）：git 2.54.0 + SSH 密钥绑定 GitHub（用户 FaithsCode）+ remote origin(git@github.com:FaithsCode/fancontrol.git) + push -u 成功；后续迭代「改码→升版本号→commit→push」即可
-- 2FA 备注：账号敏感操作走 GitHub Mobile 验证（用户未装 App），本次靠网页确认通过；后续大改如遇弹窗按提示确认即可
-- 版本史（0.1.0→0.1.7）：0.1.1 纯标准库 Web → 0.1.2 绿白 UI+下拉修复 → 0.1.3/4 悬空通道根治 → 0.1.5 识别/改名 → 0.1.6 占空比% → 0.1.7 NCT/IT8 双探测
-- 运行态：PORT UP；sensors=30 fans=6；温控正常
-- 下一步（非阻塞）：用户识别命名风扇；tests 补用例；A8/A9 择机补测；分享 fpk 包给别人用
+- 阶段：**0.1.8 运行中，换板适配完成**——用户换 MSI Z490 Carbon（NCT6687-R），应用完整恢复温控闭环并已推 GitHub（commit 278eafc）
+- 换板事件链（2026-10-13）：
+  1. 硬件变化：主板更换 → 内核 6.18.18.c1032→c1107，芯片 NCT6798→**NCT6687-R**，通道 hwmon7/6路→hwmon6/8路
+  2. 症状：日志 PermissionError 写 /sys/.../pwm1 被拒——mainline nct6775 对 NCT6687 的 pwm 注册为只读（-r--r--r--，root 亦拒）
+  3. 排除项：nct6683.ko 存在但不认 6687 芯片（ID 不匹配）；nct6775 卸载后重载报 No such device
+  4. **解法（社区标准）**：out-of-tree 驱动 Fred78290/nct6687d——本机 clone→NAS 编译（/usr/src 有精确 headers 6.18.18.c1107-trim，gcc12/make 全）→insmod→dmesg 认出 NCT6687D EC fw 1.0
+  5. 持久化：nct6687.ko → /lib/modules/$K/extra + depmod -a + /etc/modules（nct6775 条目替换为 nct6687）
+- 实测闭环（活体证据）：pwm1 写200→读回200 rpm 384→2400；pwm3 写240→2268、写60→**575**（双向受控）；**GPU 37℃→曲线理论 pwm85→实际 pwm85→rpm1617 分毫不差**
+- 0.1.8 变更：cmd/main 三探测（nct6687→nct6775→it87，已有可写 pwm 视图则跳过）；已上机（nct6687×3 确认）
+- 注意事项：fnOS 换内核版本后 nct6687.ko 需重编（cd /tmp/nct6687d && make && 拷贝+depmod）；应用侧零改动适配换板（通道自动重枚举，配置按 channel_id 保留，hwmon 编号恰好未变）
+- Git：master 278eafc 已推 GitHub；本地身份 faiths 占位
+- 运行态：PORT UP；sensors=33 fans=8；温控闭环正常
+- 遗留（非阻塞）：用户识别命名风扇；tests 补用例；A8/A9 补测；DIMM2 故障报告（reports/，换板起因）已入 git
 
 ## §B 活跃计划与待办
 
-# 活跃计划与待办（2026-09-25 十九次更新：GitHub 上线，交付闭环）
+# 活跃计划与待办（2026-10-13 二十次更新：换板适配闭环）
 
 ## 已完成
-- [x] 0.1.0→0.1.7 全程：打包/真机验收 A1–A7/绿白 UI/悬空通道根治/识别改名/占空比显示/NCT-IT8 双探测
-- [x] git init + 0.1.7 基线（49a06c9）+ **已推送 GitHub**（FaithsCode/fancontrol，SSH 绑定打通）
-- [x] GITHUB_KEY.txt 临时文件已清理
+- [x] 0.1.0→0.1.8 全程：打包/真机验收 A1–A7/绿白 UI/悬空通道根治/识别改名/占空比显示/三芯片探测
+- [x] **换板适配（MSI Z490 Carbon / NCT6687-R）**：out-of-tree nct6687d 驱动编译加载+持久化，温控闭环恢复（GPU 37℃→pwm85→rpm1617 精确）
+- [x] git 基线（49a06c9）+ 0.1.8（278eafc）均已推 GitHub（FaithsCode/fancontrol）
 
 ## 待办
-- [ ] 用户在 UI 逐通道识别并命名风扇（🔎 按钮）
+- [ ] 用户在 UI 逐通道识别并命名风扇（🔎 按钮）——新板 8 路，建议先跑识别
 - [ ] tests 补悬空通道过滤/失效回退用例
 - [ ] A8 OTA 恢复测试；A9 卸载恢复 BIOS 实测
 - [ ] （NAS 侧）确认飞牛同步方向设置（9/24 删除来源）
+- [ ] fnOS 升级换内核后：nct6687.ko 需重编（源码 /tmp/nct6687d + GitHub Fred78290/nct6687d）
 - [ ] 后续迭代 SOP：改码 → 升版本号（manifest+build.sh）→ commit → push
 
 ## §C 设计决策索引
