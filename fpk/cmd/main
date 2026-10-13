@@ -26,13 +26,14 @@ start_process() {
     fi
 
     log_msg "Starting fn-fan-control ..."
-    # 加载内核模块（drivetemp=HDD 温度；nct6775=Nuvoton 主板；it87=ITE 主板——双探测适配不同芯片）
+    # 加载内核模块（drivetemp=HDD 温度；风扇芯片三探测：nct6687(MSI 新板, 社区 out-of-tree 模块)→nct6775(Nuvoton)→it87(ITE)）
     /sbin/modprobe drivetemp 2>/dev/null || true
-    /sbin/modprobe nct6775 2>/dev/null || true
-    # nct6775 没露出 pwm 文件时再试 it87（互斥芯片，先后加载无害）
-    ls /sys/class/hwmon/hwmon*/pwm*_input >/dev/null 2>&1 || \
-    ls /sys/class/hwmon/hwmon*/pwm[0-9] >/dev/null 2>&1 || \
-    /sbin/modprobe it87 2>/dev/null || true
+    /sbin/modprobe nct6687 2>/dev/null || true
+    # 已有可写 pwm 视图则跳过后续探测（nct6687 优先）
+    if ! ls /sys/class/hwmon/hwmon*/pwm[0-9] >/dev/null 2>&1; then
+        /sbin/modprobe nct6775 2>/dev/null || true
+        /sbin/modprobe it87 2>/dev/null || true
+    fi
 
     if [ ! -f "$SRC_DIR/daemon.py" ]; then
         log_msg "ERROR: $SRC_DIR/daemon.py not found, abort start"
