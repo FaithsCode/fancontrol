@@ -1,5 +1,5 @@
 appname               = fan-control
-version               = 0.2.2
+version               = 0.3.0
 display_name          = 风扇控制
 desc                  = 读取硬盘/GPU温度，自动调节主板PWM风扇转速（曲线可配置，Web UI监控）
 source                = thirdparty

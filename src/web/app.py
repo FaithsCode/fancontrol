@@ -11,10 +11,13 @@
   GET  /api/fan/<id>        单风扇配置+状态
   POST /api/fan/<id>        更新单风扇配置（手动模式立即生效）
   POST /api/fan/<id>/pwm    立即设 PWM（临时，不保存）
+  POST /api/fan/<id>/noise-test  噪音测试：按档位阶梯升速，记录每档转速后还原
 """
 
 import json
 import os
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 _TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "index.html")
@@ -80,6 +83,7 @@ def create_app(state: dict):
                     "cycle_count": state.get("cycle_count", 0),
                     "last_cycle": state.get("last_cycle"),
                     "config": config.to_dict(),
+                    "noise_test": state.get("noise_test", {}),
                 })
             elif path == "/api/sensors":
                 sensors.read_all()
@@ -138,6 +142,56 @@ def create_app(state: dict):
                     pwm = (data or {}).get("pwm", 128)
                     self._get_controller(channel_id, ch).set_target(int(pwm), smooth=False)
                     self._send(200, {"ok": True, "pwm": pwm})
+
+                elif len(parts) == 2 and parts[1] == "noise-test":
+                    # 噪音测试：按档位阶梯升速（每档停留 hold 秒并记录转速），结束后还原原模式
+                    d = data or {}
+                    start = int(d.get("start", 30))
+                    end = int(d.get("end", 100))
+                    step = int(d.get("step", 10))
+                    hold = int(d.get("hold", 12))
+                    tests = state.setdefault("noise_test", {})
+                    if tests.get(channel_id):
+                        return self._send(409, {"error": "该通道正在测试中"})
+
+                    orig = dict(config.get_fan_config(channel_id))
+                    ctrl = self._get_controller(channel_id, ch)
+                    state.setdefault("noise_test_log", {})
+
+                    def _run():
+                        results = []
+                        state["noise_test_log"][channel_id] = results
+                        try:
+                            pcts = list(range(start, end + 1, step))
+                            for i, pct in enumerate(pcts, 1):
+                                pwm = max(0, min(255, round(pct * 255 / 100)))
+                                cfg = config.get_fan_config(channel_id)
+                                cfg["mode"] = "manual"
+                                cfg["manual_pwm"] = pwm
+                                config.set_fan_config(channel_id, cfg)
+                                tests[channel_id] = {"pct": pct, "index": i, "total": len(pcts)}
+                                ctrl.set_target(pwm, smooth=True)
+                                time.sleep(hold)
+                                rpm = ch.read_rpm()
+                                results.append({"pct": pct, "pwm": pwm, "rpm": rpm})
+                                # 打到 info.log：每档"占空比 → 转速"实测记录
+                                print("噪音测试 %s: 第 %d/%d 档 %d%% (pwm %d) → %s rpm"
+                                      % (channel_id, i, len(pcts), pct, pwm, rpm), flush=True)
+                        finally:
+                            # 无论成功失败都还原原配置，避免风扇卡在测试档位
+                            restored = config.get_fan_config(channel_id)
+                            restored["mode"] = orig.get("mode", "auto")
+                            restored["manual_pwm"] = orig.get("manual_pwm", 128)
+                            config.set_fan_config(channel_id, restored)
+                            tests.pop(channel_id, None)
+                            print("噪音测试 %s 结束，已还原为 %s 模式"
+                                  % (channel_id, restored["mode"]), flush=True)
+
+                    threading.Thread(target=_run, daemon=True).start()
+                    self._send(200, {"ok": True, "start": start, "end": end,
+                                     "step": step, "hold": hold,
+                                     "steps": len(range(start, end + 1, step)),
+                                     "note": "测试期间请听音；每档停留 %d 秒" % hold})
 
                 else:
                     self._send(404, {"error": "not found"})

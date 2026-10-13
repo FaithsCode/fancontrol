@@ -78,6 +78,8 @@ input[type=range] { flex:1; accent-color:var(--primary); }
 .btn.secondary { background:#fff; border:1px solid var(--line); color:var(--dim); }
 .btn.identify { background:#fff; border:1px solid var(--primary); color:var(--primary); padding:6px 12px; font-size:.78rem; white-space:nowrap; }
 .btn.identify:disabled { opacity:.5; cursor:wait; }
+.btn.noise { background:#fff; border:1px solid #b8860b; color:#b8860b; padding:6px 12px; font-size:.78rem; white-space:nowrap; }
+.btn.noise:disabled { opacity:.5; cursor:wait; }
 .muted { font-size:.74rem; color:var(--dim); margin-top:6px; }
 
 /* 改名行 */
@@ -88,6 +90,9 @@ input[type=range] { flex:1; accent-color:var(--primary); }
 /* 失速告警 */
 .stall-alert { background:#fff4e5; border:1px solid #ffcc80; color:#b26a00;
                border-radius:8px; padding:7px 10px; font-size:.76rem; margin-bottom:10px; }
+/* 噪音测试进行中 */
+.noise-alert { background:#eef4ff; border:1px solid #b9d4ff; color:#1a4b9c;
+               border-radius:8px; padding:7px 10px; font-size:.78rem; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -171,6 +176,7 @@ function render() {
 
     // 风扇
     const fl = document.getElementById('fanList');
+    const noiseTests = statusData.noise_test || {};
     fl.innerHTML = fans.map(f => {
         const cfg = config?.fans?.[f.channel_id] || {};
         const mode = cfg.mode || 'auto';
@@ -178,6 +184,7 @@ function render() {
         const curve = cfg.curve || [];
         const manualPwm = cfg.manual_pwm ?? 128;
         const alive = f.current_rpm > 0;
+        const nt = noiseTests[f.channel_id];
 
         const curveInputs = curve.map((pt, i) =>
             `<div class="curve-point">
@@ -201,6 +208,7 @@ function render() {
                 <span class="indicator ${alive ? 'ok' : 'err'}" title="${alive ? '转速正常' : '未接风扇/停转'}"></span>
             </div>
             ${f.stalled ? '<div class="stall-alert">⚠ 检测到失速，已自动补转（该通道下限已提高）</div>' : ''}
+            ${nt ? `<div class="noise-alert">🔊 噪音测试中：第 ${nt.index}/${nt.total} 档 = <b>${nt.pct}%</b>（请听音，结束后自动还原）</div>` : ''}
             <div class="fan-status">
                 <div class="fan-metric"><div class="num">${f.current_rpm ?? '--'}</div><div class="unit">RPM</div></div>
                 <div class="fan-metric"><div class="num">${f.current_pwm != null ? pwmToPct(f.current_pwm) + '%' : '--'}</div><div class="unit">占空比</div></div>
@@ -212,6 +220,8 @@ function render() {
                        onchange="renameFan('${f.channel_id}', this.value)">
                 <button class="btn identify" title="让这路风扇降速 5 秒，盯着机箱看哪把转慢了就是它"
                         onclick="identifyFan('${f.channel_id}', this)">🔎 识别</button>
+                <button class="btn noise" title="按 30%→100% 阶梯升速（每档 12 秒），听出你能接受的最大档位"
+                        onclick="noiseTest('${f.channel_id}', this)" ${nt ? 'disabled' : ''}>🔊 噪音测试</button>
             </div>
             <div class="mode-toggle">
                 <button class="mode-btn ${mode==='auto'?'active':''}" onclick="setMode('${f.channel_id}','auto')">自动</button>
@@ -256,7 +266,32 @@ async function renameFan(id, name) {
     fetchStatus();
 }
 
-// 识别模式：让该通道 30→5s 深降速再回来，肉眼认风扇
+// 噪音测试：阶梯升速（30%→100%，每档 12 秒），听出可接受的最大档位
+async function noiseTest(id, btn) {
+    if (!confirm('将按 30% → 100% 逐档升速，每档停留 12 秒。\n请在机器旁听音，记住"开始受不了"的那一档。\n结束后自动还原为原模式。\n\n开始吗？')) return;
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '🔊 测试中…';
+    markEditing(150);
+    try {
+        const r = await fetch(`/api/fan/${id}/noise-test`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({start:30, end:100, step:10, hold:12})
+        });
+        const j = await r.json();
+        if (!j.ok) { alert('启动失败：' + JSON.stringify(j)); }
+        // 测试由服务端后台执行，轮询刷新即可看到当前档位
+        for (let i = 0; i < 40; i++) {
+            await new Promise(r2 => setTimeout(r2, 3000));
+            await fetchStatus();
+            if (!(statusData?.noise_test || {})[id]) break;   // 测试结束
+        }
+    } catch(e) { console.error(e); }
+    btn.textContent = orig;
+    btn.disabled = false;
+    fetchStatus();
+}
+
 async function identifyFan(id, btn) {
     markEditing(25);
     btn.disabled = true;
