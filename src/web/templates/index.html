@@ -80,6 +80,9 @@ input[type=range] { flex:1; accent-color:var(--primary); }
 .btn.identify:disabled { opacity:.5; cursor:wait; }
 .btn.noise { background:#fff; border:1px solid #b8860b; color:#b8860b; padding:6px 12px; font-size:.78rem; white-space:nowrap; }
 .btn.noise:disabled { opacity:.5; cursor:wait; }
+.btn.stopbtn { background:#fff; border:1px solid var(--err); color:var(--err); padding:6px 12px; font-size:.78rem; white-space:nowrap; }
+.listen-pct { width:60px; padding:6px 8px; background:#fff; color:var(--text);
+              border:1px solid var(--line); border-radius:8px; font-size:.8rem; text-align:center; }
 .muted { font-size:.74rem; color:var(--dim); margin-top:6px; }
 
 /* 改名行 */
@@ -220,8 +223,14 @@ function render() {
                        onchange="renameFan('${f.channel_id}', this.value)">
                 <button class="btn identify" title="让这路风扇降速 5 秒，盯着机箱看哪把转慢了就是它"
                         onclick="identifyFan('${f.channel_id}', this)">🔎 识别</button>
-                <button class="btn noise" title="按 30%→100% 阶梯升速（每档 12 秒），听出你能接受的最大档位"
-                        onclick="noiseTest('${f.channel_id}', this)" ${nt ? 'disabled' : ''}>🔊 噪音测试</button>
+            </div>
+            <div class="name-row">
+                <input class="listen-pct" type="number" min="10" max="100" value="60" title="定档试听：占空比 %">
+                <button class="btn noise" title="按上面填的占空比保持 30 秒，随时可停"
+                        onclick="holdLevel('${f.channel_id}', this)" ${nt ? 'disabled' : ''}>🎧 试听 30 秒</button>
+                <button class="btn noise" title="30%→100% 逐档升速，每档 8 秒"
+                        onclick="noiseTest('${f.channel_id}', this)" ${nt ? 'disabled' : ''}>🔊 全档扫描</button>
+                ${nt ? `<button class="btn stopbtn" onclick="noiseStop('${f.channel_id}', this)">⏹ 停止（当前 ${nt.pct}%）</button>` : ''}
             </div>
             <div class="mode-toggle">
                 <button class="mode-btn ${mode==='auto'?'active':''}" onclick="setMode('${f.channel_id}','auto')">自动</button>
@@ -266,28 +275,46 @@ async function renameFan(id, name) {
     fetchStatus();
 }
 
-// 噪音测试：阶梯升速（30%→100%，每档 12 秒），听出可接受的最大档位
-async function noiseTest(id, btn) {
-    if (!confirm('将按 30% → 100% 逐档升速，每档停留 12 秒。\n请在机器旁听音，记住"开始受不了"的那一档。\n结束后自动还原为原模式。\n\n开始吗？')) return;
+// 定档试听：按输入框的占空比保持 30 秒（随时可停）
+async function holdLevel(id, btn) {
+    const inp = btn.previousElementSibling;
+    const pct = parseInt(inp && inp.value) || 60;
     btn.disabled = true;
-    const orig = btn.textContent;
-    btn.textContent = '🔊 测试中…';
+    try {
+        await fetch(`/api/fan/${id}/noise-test`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({start:pct, end:pct, step:10, hold:30})
+        });
+    } catch(e) { console.error(e); }
+    await fetchStatus();
+}
+
+// 中途停止试听/扫描
+async function noiseStop(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏹ 停止中…'; }
+    try {
+        await fetch(`/api/fan/${id}/noise-stop`, {method:'POST'});
+    } catch(e) { console.error(e); }
+    await new Promise(r => setTimeout(r, 1200));
+    fetchStatus();
+}
+
+// 全档扫描：30%→100% 每档 8 秒，听出可接受的最大档位
+async function noiseTest(id, btn) {
+    if (!confirm('将按 30% → 100% 逐档升速，每档 8 秒（共约 64 秒）。\n请在机器旁听音，随时可点"停止"。\n结束后自动还原。\n\n开始吗？')) return;
+    btn.disabled = true;
     markEditing(150);
     try {
-        const r = await fetch(`/api/fan/${id}/noise-test`, {
+        await fetch(`/api/fan/${id}/noise-test`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({start:30, end:100, step:10, hold:12})
+            body: JSON.stringify({start:30, end:100, step:10, hold:8})
         });
-        const j = await r.json();
-        if (!j.ok) { alert('启动失败：' + JSON.stringify(j)); }
-        // 测试由服务端后台执行，轮询刷新即可看到当前档位
         for (let i = 0; i < 40; i++) {
             await new Promise(r2 => setTimeout(r2, 3000));
             await fetchStatus();
-            if (!(statusData?.noise_test || {})[id]) break;   // 测试结束
+            if (!(statusData?.noise_test || {})[id]) break;
         }
     } catch(e) { console.error(e); }
-    btn.textContent = orig;
     btn.disabled = false;
     fetchStatus();
 }

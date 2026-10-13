@@ -23,6 +23,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 _TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "index.html")
 
 
+class _NoiseStopped(Exception):
+    """噪音测试被用户中途停止"""
+
+
 def create_app(state: dict):
     """创建 Web 服务，绑定 daemon 的全局状态。返回带 .run() 的 Server。"""
     sensors = state["sensors"]
@@ -161,6 +165,7 @@ def create_app(state: dict):
                     def _run():
                         results = []
                         state["noise_test_log"][channel_id] = results
+                        state.setdefault("noise_stop", {})[channel_id] = False
                         try:
                             pcts = list(range(start, end + 1, step))
                             for i, pct in enumerate(pcts, 1):
@@ -171,12 +176,20 @@ def create_app(state: dict):
                                 config.set_fan_config(channel_id, cfg)
                                 tests[channel_id] = {"pct": pct, "index": i, "total": len(pcts)}
                                 ctrl.set_target(pwm, smooth=True)
-                                time.sleep(hold)
+                                # 分片睡眠：用户点"停止"后 ≤0.5 秒即中断
+                                waited = 0.0
+                                while waited < hold:
+                                    if state["noise_stop"].get(channel_id):
+                                        raise _NoiseStopped()
+                                    time.sleep(0.5)
+                                    waited += 0.5
                                 rpm = ch.read_rpm()
                                 results.append({"pct": pct, "pwm": pwm, "rpm": rpm})
                                 # 打到 info.log：每档"占空比 → 转速"实测记录
                                 print("噪音测试 %s: 第 %d/%d 档 %d%% (pwm %d) → %s rpm"
                                       % (channel_id, i, len(pcts), pct, pwm, rpm), flush=True)
+                        except _NoiseStopped:
+                            print("噪音测试 %s: 用户手动停止" % channel_id, flush=True)
                         finally:
                             # 无论成功失败都还原原配置，避免风扇卡在测试档位
                             restored = config.get_fan_config(channel_id)
@@ -184,6 +197,7 @@ def create_app(state: dict):
                             restored["manual_pwm"] = orig.get("manual_pwm", 128)
                             config.set_fan_config(channel_id, restored)
                             tests.pop(channel_id, None)
+                            state.get("noise_stop", {}).pop(channel_id, None)
                             print("噪音测试 %s 结束，已还原为 %s 模式"
                                   % (channel_id, restored["mode"]), flush=True)
 
@@ -192,6 +206,14 @@ def create_app(state: dict):
                                      "step": step, "hold": hold,
                                      "steps": len(range(start, end + 1, step)),
                                      "note": "测试期间请听音；每档停留 %d 秒" % hold})
+
+                elif len(parts) == 2 and parts[1] == "noise-stop":
+                    # 中途停止试听/扫描：置停止标志，测试线程 ≤0.5 秒内中断并还原原模式
+                    tests = state.setdefault("noise_test", {})
+                    if not tests.get(channel_id):
+                        return self._send(404, {"error": "该通道没有进行中的噪音测试"})
+                    state.setdefault("noise_stop", {})[channel_id] = True
+                    self._send(200, {"ok": True, "note": "已请求停止，正在还原原模式"})
 
                 else:
                     self._send(404, {"error": "not found"})

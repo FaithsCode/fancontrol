@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FPK_SRC="$ROOT/fpk"
 OUTPUT_DIR="$ROOT/dist"
 APP_NAME="fan-control"
-APP_VERSION="0.3.0"
+APP_VERSION="0.3.1"
 
 echo "=== 打包 ${APP_NAME} v${APP_VERSION}（官方结构） ==="
 
