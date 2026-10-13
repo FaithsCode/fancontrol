@@ -84,6 +84,10 @@ input[type=range] { flex:1; accent-color:var(--primary); }
 .name-row { display:flex; gap:8px; margin-bottom:12px; }
 .name-input { flex:1; max-width:320px; padding:7px 10px; background:#fff; color:var(--text);
               border:1px solid var(--line); border-radius:8px; font-size:.8rem; }
+
+/* 失速告警 */
+.stall-alert { background:#fff4e5; border:1px solid #ffcc80; color:#b26a00;
+               border-radius:8px; padding:7px 10px; font-size:.76rem; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -196,6 +200,7 @@ function render() {
                      <span class="fan-id">${f.channel_id}</span></div>
                 <span class="indicator ${alive ? 'ok' : 'err'}" title="${alive ? '转速正常' : '未接风扇/停转'}"></span>
             </div>
+            ${f.stalled ? '<div class="stall-alert">⚠ 检测到失速，已自动补转（该通道下限已提高）</div>' : ''}
             <div class="fan-status">
                 <div class="fan-metric"><div class="num">${f.current_rpm ?? '--'}</div><div class="unit">RPM</div></div>
                 <div class="fan-metric"><div class="num">${f.current_pwm != null ? pwmToPct(f.current_pwm) + '%' : '--'}</div><div class="unit">占空比</div></div>

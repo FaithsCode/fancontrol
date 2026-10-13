@@ -43,7 +43,9 @@ def _default_fan_config(channel_id: str, label: str) -> dict:
             {"temp": 60, "pwm": 255}
         ],
         "min_pwm": 30,                # 最低 PWM（防停转）
-        "safety_pwm": 150             # 传感器失效安全值
+        "safety_pwm": 150,            # 传感器失效安全值
+        "stall_guard": True           # 失速保护：给了占空比却不转则自动补转
+                                      # （3pin 无测速线、空置接口应设为 false）
     }
 
 

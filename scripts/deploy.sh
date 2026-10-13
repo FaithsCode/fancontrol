@@ -13,7 +13,8 @@ APPDIR=/var/apps/$APP
 echo "=== 1. 安装 $FPK ==="
 appcenter-cli install-fpk "$FPK" 2>&1 | tail -2
 
-echo "=== 2. 停旧进程 ==="
+echo "=== 2. 停旧进程（先走框架，保持框架状态一致）==="
+appcenter-cli stop "$APP" 2>&1 | tail -1
 pkill -f "python3 daemon.py" 2>/dev/null && echo "  已停 daemon" || echo "  daemon 未在运行"
 sleep 1
 
@@ -26,6 +27,13 @@ cp -r "$BUILD/fpk/app/src" "$APPDIR/var/src" && echo "  var/src ✓"
 echo "=== 4. 启动 ==="
 appcenter-cli start "$APP" 2>&1 | tail -2
 sleep 8
+
+# 框架状态与进程不一致时会跳过启动 → 直接调生命周期脚本兜底
+if ! ss -tln 2>/dev/null | grep -q 8190; then
+  echo "  ⚠ 框架启动未生效，回退直接拉起"
+  TRIM_PKGVAR="$APPDIR/var" bash "$APPDIR/cmd/main" start
+  sleep 6
+fi
 
 echo "=== 5. 自检 ==="
 ss -tln 2>/dev/null | grep -q 8190 && echo "  端口 8190 ✓" || echo "  ✗ 端口未监听"

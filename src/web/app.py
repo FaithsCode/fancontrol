@@ -66,9 +66,16 @@ def create_app(state: dict):
             elif path == "/api/status":
                 sensors.read_all()
                 fans.read_all()
+                # 透出失速保护状态（UI 显示告警徽标）
+                stall = state.get("stall", {})
+                fan_list = fans.to_dict()
+                for item in fan_list:
+                    st = stall.get(item["channel_id"], {})
+                    item["stalled"] = bool(st.get("stalled"))
+                    item["learned_min"] = st.get("learned_min", 0)
                 self._send(200, {
                     "sensors": sensors.to_dict(),
-                    "fans": fans.to_dict(),
+                    "fans": fan_list,
                     "running": state.get("running", False),
                     "cycle_count": state.get("cycle_count", 0),
                     "last_cycle": state.get("last_cycle"),
@@ -117,7 +124,7 @@ def create_app(state: dict):
                 if len(parts) == 1:
                     # 更新风扇配置
                     cfg = config.get_fan_config(channel_id)
-                    for key in ("mode", "sensor_id", "manual_pwm", "curve", "min_pwm", "safety_pwm", "display_name"):
+                    for key in ("mode", "sensor_id", "manual_pwm", "curve", "min_pwm", "safety_pwm", "display_name", "stall_guard"):
                         if data and key in data:
                             cfg[key] = data[key]
                     config.set_fan_config(channel_id, cfg)
